@@ -1,12 +1,12 @@
 import tensorflow as tf
-from mol_graph import max_nb
+from mol_graph_direct_useScores import max_nb
 from nn import *
 
 def rcnn_wl_last(graph_inputs, hidden_size, depth, training=True):
     input_atom, input_bond, atom_graph, bond_graph, num_nbs = graph_inputs
     atom_features = tf.nn.relu(linearND(input_atom, hidden_size, "atom_embedding", init_bias=None))
     layers = []
-    for i in xrange(depth):
+    for i in range(depth):
         with tf.variable_scope("WL", reuse=(i>0)) as scope:
             fatom_nei = tf.gather_nd(atom_features, atom_graph)
             fbond_nei = tf.gather_nd(input_bond, bond_graph)
@@ -35,7 +35,7 @@ def rcnn_wl_only(graph_inputs, hidden_size, depth, training=True):
     input_atom, input_bond, atom_graph, bond_graph, num_nbs = graph_inputs
     atom_features = tf.nn.relu(linearND(input_atom, hidden_size, "atom_embedding", init_bias=None))
     layers = []
-    for i in xrange(depth):
+    for i in range(depth):
         with tf.variable_scope("WL", reuse=(i>0)) as scope:
             fatom_nei = tf.gather_nd(atom_features, atom_graph)
             fbond_nei = tf.gather_nd(input_bond, bond_graph)
@@ -56,7 +56,7 @@ def rcnn_wl_only(graph_inputs, hidden_size, depth, training=True):
 
 def wl_diff_net(graph_inputs, atom_features, hidden_size, depth):
     input_atom, input_bond, atom_graph, bond_graph, num_nbs = graph_inputs
-    for i in xrange(depth):
+    for i in range(depth):
         with tf.variable_scope("WL", reuse=(i>0)) as scope:
             fatom_nei = tf.gather_nd(atom_features, atom_graph)
             fbond_nei = tf.gather_nd(input_bond, bond_graph)

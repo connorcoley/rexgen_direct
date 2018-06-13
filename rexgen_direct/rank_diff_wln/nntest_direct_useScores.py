@@ -9,6 +9,7 @@ from multiprocessing import Queue, Pool
 import time
 import rdkit.Chem as Chem
 import os
+from __future__ import print_function
 
 parser = OptionParser()
 parser.add_option("-t", "--test", dest="test_path")
@@ -99,7 +100,7 @@ def read_data(coord):
             data.append((r,cbonds))
         data_len = len(data)
 
-        for it in xrange(data_len):
+        for it in range(data_len):
             reaction, cand_bonds = data[it]
             r = reaction.split('>')[0]
             ncore = core_size
@@ -164,9 +165,9 @@ try:
                     x, y = x + 1, y + 1
                     # make sure this bond change is really a _change_
                     if ((x, y) not in rbonds and t > 0) or ((x, y) in rbonds and rbonds[(x, y)] != t):
-                        print '%d-%d-%d' % (x, y, t),
-                print '|',
-            print
+                        print('%d-%d-%d' % (x, y, t), end=' ')
+                print('|', end=' ')
+            print('')
 
         # Report progress
         if total % 10 == 0:

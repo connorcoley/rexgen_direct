@@ -1,5 +1,5 @@
 ################################################################################
-Most of these commands should be run from the core-wln-global folder
+Most of these commands should be run from the core_wln_global folder
 ################################################################################
 
 ################################################################################
@@ -64,15 +64,15 @@ gold = open('../data/test.txt.proc')
 [6, 8, 10, 12, 14, 16, 18, 20]
 [0.8768, 0.90625, 0.920875, 0.9305, 0.937775, 0.944325, 0.948625, 0.9523]
 
-# Counting num. cands (including reagents in enumeration) - from inside rank-diff-wln
-python count_num_candidates.py --test ../data/test.txt.proc --cand ../core-wln-global/model-300-3-direct/test_withReagents.cbond --ncand 1500   --ncore 6
-python count_num_candidates.py --test ../data/test.txt.proc --cand ../core-wln-global/model-300-3-direct/test_withReagents.cbond --ncand 1500   --ncore 8
-python count_num_candidates.py --test ../data/test.txt.proc --cand ../core-wln-global/model-300-3-direct/test_withReagents.cbond --ncand 1500   --ncore 10
-python count_num_candidates.py --test ../data/test.txt.proc --cand ../core-wln-global/model-300-3-direct/test_withReagents.cbond --ncand 1500   --ncore 12
-python count_num_candidates.py --test ../data/test.txt.proc --cand ../core-wln-global/model-300-3-direct/test_withReagents.cbond --ncand 1500   --ncore 14
-python count_num_candidates.py --test ../data/test.txt.proc --cand ../core-wln-global/model-300-3-direct/test_withReagents.cbond --ncand 1500   --ncore 16
-python count_num_candidates.py --test ../data/test.txt.proc --cand ../core-wln-global/model-300-3-direct/test_withReagents.cbond --ncand 1500   --ncore 18
-python count_num_candidates.py --test ../data/test.txt.proc --cand ../core-wln-global/model-300-3-direct/test_withReagents.cbond --ncand 1500   --ncore 20
+# Counting num. cands (including reagents in enumeration) - from inside rank_diff_wln
+python count_num_candidates.py --test ../data/test.txt.proc --cand ../core_wln_global/model-300-3-direct/test_withReagents.cbond --ncand 1500   --ncore 6
+python count_num_candidates.py --test ../data/test.txt.proc --cand ../core_wln_global/model-300-3-direct/test_withReagents.cbond --ncand 1500   --ncore 8
+python count_num_candidates.py --test ../data/test.txt.proc --cand ../core_wln_global/model-300-3-direct/test_withReagents.cbond --ncand 1500   --ncore 10
+python count_num_candidates.py --test ../data/test.txt.proc --cand ../core_wln_global/model-300-3-direct/test_withReagents.cbond --ncand 1500   --ncore 12
+python count_num_candidates.py --test ../data/test.txt.proc --cand ../core_wln_global/model-300-3-direct/test_withReagents.cbond --ncand 1500   --ncore 14
+python count_num_candidates.py --test ../data/test.txt.proc --cand ../core_wln_global/model-300-3-direct/test_withReagents.cbond --ncand 1500   --ncore 16
+python count_num_candidates.py --test ../data/test.txt.proc --cand ../core_wln_global/model-300-3-direct/test_withReagents.cbond --ncand 1500   --ncore 18
+python count_num_candidates.py --test ../data/test.txt.proc --cand ../core_wln_global/model-300-3-direct/test_withReagents.cbond --ncand 1500   --ncore 20
 
 # Run summary script
 python ../scripts/average_nums_in_text.py

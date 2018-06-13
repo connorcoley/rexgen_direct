@@ -14,7 +14,7 @@ max_nb = 10
 def onek_encoding_unk(x, allowable_set):
     if x not in allowable_set:
         x = allowable_set[-1]
-    return map(lambda s: x == s, allowable_set)
+    return list(map(lambda s: x == s, allowable_set))
 
 def atom_features(atom):
     return np.array(onek_encoding_unk(atom.GetSymbol(), elem_list) 
@@ -158,9 +158,9 @@ def smiles2graph(rsmiles, psmiles, core_bonds, gold_bonds, cutoff=500,
 
     # Helper function to check if a combination is connected
     core_bonds_adj = np.eye(len(core_bonds), dtype=bool)
-    for i in xrange(len(core_bonds)):
+    for i in range(len(core_bonds)):
         a1, b1, t1, v1 = core_bonds[i]
-        for j in xrange(i, len(core_bonds)):
+        for j in range(i, len(core_bonds)):
             a2, b2, t2, v2 = core_bonds[j]
             if a1 == a2 or a1 == b2 or b1 == a2 or b1 == b2:
                 core_bonds_adj[i,j] = core_bonds_adj[j,i] = True
@@ -254,8 +254,8 @@ def smiles2graph(rsmiles, psmiles, core_bonds, gold_bonds, cutoff=500,
 
     # N choose k combinatorics
     # up to 4 bond changes at once - only 0.19% of train examples have 5 bonds changed, we can take the hit...
-    core_bonds_i = xrange(len(core_bonds))
-    for k in xrange(1, kmax+1):
+    core_bonds_i = range(len(core_bonds))
+    for k in range(1, kmax+1):
         for bond_change_combo_i in combinations(core_bonds_i, k):
             # Check if connected
             if not check_if_connected(bond_change_combo_i):
@@ -423,7 +423,7 @@ if __name__ == "__main__":
 
     try:
         fid1 = open('../data/valid.txt.proc', 'r')
-        fid2 = open('../core-wln-global/model-300-3-direct/valid.cbond', 'r')
+        fid2 = open('../core_wln_global/model-300-3-direct/valid.cbond', 'r')
 
         ctr = 0
         tot = 0
@@ -506,7 +506,7 @@ if __name__ == "__main__":
 
     #
     # f = open('../data/train.single')
-    # fcand = open('../core-wln-global/newtrain.cbond')
+    # fcand = open('../core_wln_global/newtrain.cbond')
     #
     # tot,acc = 0,0
     # for line in f:
@@ -530,5 +530,5 @@ if __name__ == "__main__":
     #     if smiles2graph(r,p,cbonds[:6]) > 150:
     #         acc += 1
     #     tot += 1.0
-    #     print acc / tot
+    #     print(acc / tot)
 

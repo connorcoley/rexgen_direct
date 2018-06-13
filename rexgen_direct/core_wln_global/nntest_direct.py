@@ -1,7 +1,7 @@
 import tensorflow as tf
-from nn import linearND, linear
-from models import *
-from ioutils_direct import *
+from .nn import linearND, linear
+from .models import *
+from .ioutils_direct import *
 import math, sys, random
 from collections import Counter
 from optparse import OptionParser
@@ -9,6 +9,7 @@ from functools import partial
 import threading
 from multiprocessing import Queue
 import os
+from __future__ import print_function
 
 NK3 = 80
 NK2 = 40
@@ -35,9 +36,9 @@ depth = int(opts.depth)
 detailed = bool(opts.detailed)
 
 if opts.rich_feat:
-    from mol_graph_rich import atom_fdim as adim, bond_fdim as bdim, max_nb, smiles2graph_list as _s2g
+    from .mol_graph_rich import atom_fdim as adim, bond_fdim as bdim, max_nb, smiles2graph_list as _s2g
 else:
-    from mol_graph import atom_fdim as adim, bond_fdim as bdim, max_nb, smiles2graph_list as _s2g
+    from .mol_graph import atom_fdim as adim, bond_fdim as bdim, max_nb, smiles2graph_list as _s2g
 
 
 smiles2graph_batch = partial(_s2g, idxfunc=lambda x:x.GetIntProp('molAtomMapNumber') - 1)
@@ -125,9 +126,9 @@ def read_data(path, coord):
     if not opts.verbose:
         print('Data length: {}'.format(len(data)))
 
-    for it in xrange(0, len(data), batch_size):
+    for it in range(0, len(data), batch_size):
         src_batch, edit_batch = [], []; all_ratoms = []; all_rbonds = []; react_batch = []
-        for i in xrange(batch_size):
+        for i in range(batch_size):
             react,_,p = data[it][0].split('>')
             src_batch.append(react)
             edits = data[it][1]
@@ -195,50 +196,50 @@ try:
             cur_topk, cur_dim = session.run([topk, label_dim])
         cur_dim = int(math.sqrt(cur_dim/5)) # important! get num atoms
 
-        for i in xrange(batch_size):
+        for i in range(batch_size):
             ratoms = all_ratoms[i]
             rbonds = all_rbonds[i]
             pre = 0
 
-            for j in xrange(NK):
+            for j in range(NK):
                 if cur_topk[i, j] in sp_label[i]:
                     pre += 1
             if len(sp_label[i]) == pre: accNK += 1
             pre = 0
-            for j in xrange(NK0):
+            for j in range(NK0):
                 if cur_topk[i, j] in sp_label[i]:
                     pre += 1
             if len(sp_label[i]) == pre: accNK0 += 1
             pre = 0
-            for j in xrange(NK1):
+            for j in range(NK1):
                 if cur_topk[i, j] in sp_label[i]:
                     pre += 1
             if len(sp_label[i]) == pre: accNK1 += 1
             pre = 0
-            for j in xrange(NK2):
+            for j in range(NK2):
                 if cur_topk[i, j] in sp_label[i]:
                     pre += 1
             if len(sp_label[i]) == pre: accNK2 += 1
             pre = 0
-            for j in xrange(NK3):
+            for j in range(NK3):
                 if cur_topk[i, j] in sp_label[i]:
                     pre += 1
             if len(sp_label[i]) == pre: accNK3 += 1
 
             if opts.verbose:
                 if detailed:
-                    print "{}".format(react_batch[i]),
-                for j in xrange(NK3):
+                    print("{}".format(react_batch[i]), end=' ')
+                for j in range(NK3):
                     k = cur_topk[i,j] # index that must be converted to (x, y, t) tuple
                     bindex = k % nbos
                     y = ((k - bindex) / nbos) % cur_dim + 1
                     x = (k - bindex - (y-1) * nbos) / cur_dim / nbos + 1
                     bo = bindex_to_o[bindex]
                     if x < y and x in ratoms and y in ratoms and (x, y, bo) not in rbonds:
-                        print "{}-{}-{:.1f}".format(x, y, bo),
+                        print("{}-{}-{:.1f}".format(x, y, bo), end=' ')
                         if detailed: # include actual score of prediction
-                            print "{:.3f}".format(cur_sco[i, j]),
-                print
+                            print("{:.3f}".format(cur_sco[i, j]), end=' ')
+                print('') # new line
 
         it += 1
         if it % 5 == 0:

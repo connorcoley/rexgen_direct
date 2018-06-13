@@ -1,14 +1,15 @@
 import tensorflow as tf
-from nn import linearND, linear
-from mol_graph import atom_fdim as adim, bond_fdim as bdim, max_nb, smiles2graph_list as _s2g
-from models import *
-from ioutils_direct import * # NOTE: THIS IS CHANGED IN DIRECT VERSION
+from .nn import linearND, linear
+from .mol_graph import atom_fdim as adim, bond_fdim as bdim, max_nb, smiles2graph_list as _s2g
+from .models import *
+from .ioutils_direct import * # NOTE: THIS IS CHANGED IN DIRECT VERSION
 import math, sys, random
 from collections import Counter
 from optparse import OptionParser
 from functools import partial
 import threading
 from multiprocessing import Queue
+from __future__ import print_function
 
 '''
 Changes from NIPS paper:
@@ -34,9 +35,9 @@ hidden_size = int(opts.hidden_size)
 depth = int(opts.depth)
 max_norm = float(opts.max_norm)
 if opts.rich_feat:
-    from mol_graph_rich import atom_fdim as adim, bond_fdim as bdim, max_nb, smiles2graph_list as _s2g
+    from .mol_graph_rich import atom_fdim as adim, bond_fdim as bdim, max_nb, smiles2graph_list as _s2g
 else:
-    from mol_graph import atom_fdim as adim, bond_fdim as bdim, max_nb, smiles2graph_list as _s2g
+    from .mol_graph import atom_fdim as adim, bond_fdim as bdim, max_nb, smiles2graph_list as _s2g
 
 smiles2graph_batch = partial(_s2g, idxfunc=lambda x:x.GetIntProp('molAtomMapNumber') - 1)
 
@@ -114,41 +115,41 @@ backprop = optimizer.apply_gradients(grads_and_vars)
 tf.global_variables_initializer().run(session=session)
 size_func = lambda v: reduce(lambda x, y: x*y, v.get_shape().as_list())
 n = sum(size_func(v) for v in tf.trainable_variables())
-print "Model size: %dK" % (n/1000,)
+print("Model size: %dK" % (n/1000,))
 
 queue = Queue()
 
 def count(s):
     c = 0
-    for i in xrange(len(s)):
+    for i in range(len(s)):
         if s[i] == ':':
             c += 1
     return c
 
 def read_data(path, coord):
     bucket_size = [10,20,30,40,50,60,80,100,120,150]
-    buckets = [[] for i in xrange(len(bucket_size))]
+    buckets = [[] for i in range(len(bucket_size))]
     with open(path, 'r') as f:
         for line in f:
             r,e = line.strip("\r\n ").split()
             c = count(r)
-            for i in xrange(len(bucket_size)):
+            for i in range(len(bucket_size)):
                 if c <= bucket_size[i]:
                     buckets[i].append((r,e))
                     break
 
-    for i in xrange(len(buckets)):
+    for i in range(len(buckets)):
         random.shuffle(buckets[i])
     
     head = [0] * len(buckets)
-    avil_buckets = [i for i in xrange(len(buckets)) if len(buckets[i]) > 0]
+    avil_buckets = [i for i in range(len(buckets)) if len(buckets[i]) > 0]
     while True:
         src_batch, edit_batch = [], []
         bid = random.choice(avil_buckets)
         bucket = buckets[bid]
         it = head[bid]
         data_len = len(bucket)
-        for i in xrange(batch_size):
+        for i in range(batch_size):
             react = bucket[it][0].split('>')[0]
             src_batch.append(react)
             edits = bucket[it][1]
@@ -177,29 +178,29 @@ try:
         it += 1
         _, cur_topk, pnorm, gnorm = session.run([backprop, topk, param_norm, grad_norm], feed_dict={_lr:lr})
         sp_label = queue.get()
-        for i in xrange(batch_size):
+        for i in range(batch_size):
             pre = 0
-            for j in xrange(NK):
+            for j in range(NK):
                 if cur_topk[i,j] in sp_label[i]:
                     pre += 1
             if len(sp_label[i]) == pre: sum_err += 1
             pre = 0
-            for j in xrange(NK0):
+            for j in range(NK0):
                 if cur_topk[i,j] in sp_label[i]:
                     pre += 1
             if len(sp_label[i]) == pre: sum_acc += 1
         sum_gnorm += gnorm
 
         if it % 50 == 0:
-            print "Acc@10: %.4f, Acc@20: %.4f, Param Norm: %.2f, Grad Norm: %.2f" % (sum_acc / (50 * batch_size), sum_err / (50 * batch_size), pnorm, sum_gnorm / 50) 
+            print("Acc@10: %.4f, Acc@20: %.4f, Param Norm: %.2f, Grad Norm: %.2f" % (sum_acc / (50 * batch_size), sum_err / (50 * batch_size), pnorm, sum_gnorm / 50) )
             sys.stdout.flush()
             sum_acc, sum_err, sum_gnorm = 0.0, 0.0, 0.0
         if it % 10000 == 0:
             lr *= 0.9
             saver.save(session, opts.save_path + "/model.ckpt", global_step=it)
-            print "Model Saved!"
+            print("Model Saved!")
 except Exception as e:
-    print e
+    print(e)
     coord.request_stop(e)
 finally:
     saver.save(session, opts.save_path + "/model.final")

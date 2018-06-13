@@ -91,11 +91,11 @@ tf.global_variables_initializer().run(session=session)
 
 size_func = lambda v: reduce(lambda x, y: x*y, v.get_shape().as_list())
 n = sum(size_func(v) for v in tf.trainable_variables())
-print "Model size: %dK" % (n/1000,)
+print("Model size: %dK" % (n/1000,))
 
 def count(s):
     c = 0
-    for i in xrange(len(s)):
+    for i in range(len(s)):
         if s[i] == ':':
             c += 1
     return c
@@ -195,7 +195,7 @@ try:
         # Use accumulation ops to simulate use of minibatches
         it += batch_size
         session.run(zero_ops)
-        for i in xrange(batch_size):
+        for i in range(batch_size):
             ans = session.run(accum_ops + [pred])
             if ans[-1] != 0: 
                 sum_err += 1.0
@@ -205,19 +205,19 @@ try:
         sum_gnorm += gnorm
 
         if it % 20 == 0 and it > 0:
-            print "After %d, Training Error: %.4f, Param Norm: %.2f, Grad Norm: %.2f" % (it, sum_err / 20, pnorm, sum_gnorm / 20 * batch_size)
+            print("After %d, Training Error: %.4f, Param Norm: %.2f, Grad Norm: %.2f" % (it, sum_err / 20, pnorm, sum_gnorm / 20 * batch_size))
             sys.stdout.flush()
             sum_err, sum_gnorm = 0.0, 0.0
         if it % 100000 == 0 and it > 0:
             saver.save(session, opts.save_path + "/model.ckpt-%d" % it)
             lr *= 0.9
-            print "Learning Rate: %.6f" % lr
+            print("Learning Rate: %.6f" % lr)
 
         if it % 6000000 == 0 and it > 0:
             coord.request_stop()
 
 except Exception as e:
-    print e
+    print(e)
     coord.request_stop(e)
 finally:
     saver.save(session, opts.save_path + "/model.final")

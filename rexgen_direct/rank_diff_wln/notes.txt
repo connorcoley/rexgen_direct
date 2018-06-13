@@ -1,5 +1,5 @@
 ################################################################################
-Most of these commands should be run from the rank-diff-wln folder
+Most of these commands should be run from the rank_diff_wln folder
 ################################################################################
 
 ################################################################################
@@ -23,14 +23,14 @@ Finished processing ../data/test.txt
 
 mkdir model-core16-500-3-max150-direct-useScores
 python nntrain_direct_useScores.py --train ../data/train.txt.proc --cand \
-    ../core-wln-global/model-300-3-direct/train.cbond_detailed --hidden 500 --depth 3 --ncand 150 --ncore 16 \
+    ../core_wln_global/model-300-3-direct/train.cbond_detailed --hidden 500 --depth 3 --ncand 150 --ncore 16 \
      --save_dir model-core16-500-3-max150-direct-useScores | tee model-core16-500-3-max150-direct-useScores/log.txt
 
 ################################################################################
 ### Validate
 ################################################################################
 
-python nntest_direct_useScores.py --test ../data/valid.txt.proc --cand ../core-wln-global/model-300-3-direct/valid.cbond_detailed \
+python nntest_direct_useScores.py --test ../data/valid.txt.proc --cand ../core_wln_global/model-300-3-direct/valid.cbond_detailed \
     --hidden 500 --depth 3 --ncand 1500   --ncore 16 --model model-core16-500-3-max150-direct-useScores --checkpoint ckpt-2400000 --verbose 1 > model-core16-500-3-max150-direct-useScores/valid.cbond_detailed_2400000
 python ../scripts/eval_by_smiles.py --gold ../data/valid.txt.proc --pred model-core16-500-3-max150-direct-useScores/valid.cbond_detailed_2400000 --bonds_as_doubles true
 
@@ -57,7 +57,7 @@ python ../scripts/eval_by_smiles.py --gold ../data/valid.txt.proc --pred model-c
 ################################################################################
 
 # Testing with 2400k
-python nntest_direct_useScores.py --test ../data/test.txt.proc --cand ../core-wln-global/model-300-3-direct/test.cbond_detailed \
+python nntest_direct_useScores.py --test ../data/test.txt.proc --cand ../core_wln_global/model-300-3-direct/test.cbond_detailed \
     --hidden 500 --depth 3 --ncand 1500   --ncore 16 --model model-core16-500-3-max150-direct-useScores --checkpoint ckpt-2400000 --verbose 1 > model-core16-500-3-max150-direct-useScores/test.cbond_detailed_2400000
 python ../scripts/eval_by_smiles.py --gold ../data/test.txt.proc --pred model-core16-500-3-max150-direct-useScores/test.cbond_detailed_2400000 --bonds_as_doubles true
 
@@ -69,7 +69,7 @@ python ../scripts/eval_by_smiles.py --gold ../data/test.txt.proc --pred model-co
 ################################################################################
 
 # Testing on human dataset
-python nntest_direct_useScores.py --test ../data/test_human.txt.proc --cand ../core-wln-global/model-300-3-direct/test_human_withReagents.cbond_detailed \
+python nntest_direct_useScores.py --test ../data/test_human.txt.proc --cand ../core_wln_global/model-300-3-direct/test_human_withReagents.cbond_detailed \
     --hidden 500 --depth 3 --ncand 1500   --ncore 16 --model model-core16-500-3-max150-direct-useScores --checkpoint ckpt-2400000 --verbose 1 > model-core16-500-3-max150-direct-useScores/test_human_withReagents.cbond_detailed_2400000
 python ../scripts/eval_by_smiles.py --gold ../data/test_human.txt.proc --pred model-core16-500-3-max150-direct-useScores/test_human_withReagents.cbond_detailed_2400000 --bonds_as_doubles true
 

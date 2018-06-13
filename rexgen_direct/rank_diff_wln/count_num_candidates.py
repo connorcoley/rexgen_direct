@@ -41,7 +41,7 @@ for line in data_f:
     data.append((r,cbonds))
 
 data_len = len(data)
-for it in xrange(data_len):
+for it in range(data_len):
     reaction, cand_bonds = data[it]
     r = reaction.split('>')[0]
     ncore = core_size

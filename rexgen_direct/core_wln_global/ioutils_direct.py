@@ -1,5 +1,5 @@
 import rdkit.Chem as Chem
-from mol_graph import bond_fdim, bond_features
+from .mol_graph import bond_fdim, bond_features
 import numpy as np
 
 BOND_TYPE = ["NOBOND", Chem.rdchem.BondType.SINGLE, Chem.rdchem.BondType.DOUBLE, Chem.rdchem.BondType.TRIPLE, Chem.rdchem.BondType.AROMATIC] 
@@ -23,8 +23,8 @@ def get_bin_feature(r, max_natoms):
         bond_map[(a1,a2)] = bond_map[(a2,a1)] = bond
         
     features = []
-    for i in xrange(max_natoms):
-        for j in xrange(max_natoms):
+    for i in range(max_natoms):
+        for j in range(max_natoms):
             f = np.zeros((binary_fdim,))
             if i >= n_atoms or j >= n_atoms or i == j:
                 features.append(f)
@@ -57,9 +57,9 @@ def get_bond_label(r, edits, max_natoms):
 
     labels = []
     sp_labels = []
-    for i in xrange(max_natoms):
-        for j in xrange(max_natoms):
-            for k in xrange(len(bo_to_index)):
+    for i in range(max_natoms):
+        for j in range(max_natoms):
+            for k in range(len(bo_to_index)):
                 if i == j or i >= n_atoms or j >= n_atoms:
                     labels.append(INVALID_BOND) # mask
                 else:
