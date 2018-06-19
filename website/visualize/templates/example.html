@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}Visualization{% endblock %}
+{% block header %}Visualizing test examples{% endblock %}
+
+{% block javascript %}
+<script>  
+var zoomsize = "75";
+function setsize() {
+  zoomsize = $('#zoom').val();
+  $('#img').width(zoomsize + '%');
+}
+function redraw() {
+  console.log('redrawing');
+  $.ajax({
+      url: '/visualize/ajax',
+      data: {
+          index: $("#index").val(),
+          showmap: $("#showmap").is(":checked"),
+          highlight: $("#highlight").val(),
+      },
+      // dataType: 'json',
+      success: function (data) {
+        console.log(data);
+        $('#image').html('<img id="img" src="data:image/png;base64,' + data.img_str + '" width="' + zoomsize + '%" />');
+        $('#index_display').html('Results for index ' + data.index);
+      }
+  });
+};
+// On load, trigger
+$(document).ready(function() {
+  redraw();
+});
+
+</script>
+{% endblock %}
+
+
+{% block content %}
+
+<i>If only one product is drawn, then the model correctly predicted the outcome!</i><br><br>
+<i>If two products are drawn, then the <u>red</u> product is the model prediction. If 'No' is displayed, then the combination of bond changes predicted by the model did not yield a valid SMILES string different from the reactants.</i><br><br>
+<i>Instructions: (1) Choose any test ID to look at; (2) Look at the reaction with atom mapping <b>on</b>; (3) Select which atom you are interested in visualizing the global attention scores for (i.e., which atoms most significantly influence the perceived reactivity at that atom) and enter its number label in the `Highlight atom' box; (4) Turn atom mapping display to <b>off</b> for a more attractive drawing; (5) Resize the image drawing as needed.</i>
+
+<h3>Inputs:</h3>
+
+<b>Test ID (1-40000): </b> <input type="number" id="index" name="index" min="1" max="40000" value="1" onchange="redraw()"><br>
+
+<input type="checkbox" id="showmap" onchange="redraw()" checked> Display atom mapping<br>
+
+<b>Highlight atom (0 for none): </b> <input type="number" id="highlight" name="highlight" min="0" max="1000" value="0" onchange="redraw()"><br>
+
+<b>Resize </b><div style="width:15%"><input type="range" min="10" max="200" value="75" id="zoom" name="zoom" onchange="setsize()"></div>
+
+<br>
+<br>
+<h3 id="index_display"></h3>
+<div id="image" style="overflow-x:auto; width=100%"></div>
+{% endblock %}
