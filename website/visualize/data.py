@@ -219,6 +219,7 @@ def analyze_reaction(react, product=None, guessed_prod=None, clearmap=False, att
         with open('temp.png', 'wb') as fid:
             fid.write(pngtext)
         img = Image.open('temp.png')
+        np.array(img) # magic fix for drawing bug in Python 3.5.3 (?) no clue why this is necessary, but it is
         imgs.append(img)
         
     if product:
@@ -270,6 +271,7 @@ def analyze_reaction(react, product=None, guessed_prod=None, clearmap=False, att
         with open('test.png', 'wb') as fid:
             fid.write(pngtext)
         img = Image.open('test.png')
+        np.array(img) # magic fix for drawing bug in Python 3.5.3 (?) no clue why this is necessary, but it is
         imgs.append(img)
     
         
@@ -295,6 +297,7 @@ def analyze_reaction(react, product=None, guessed_prod=None, clearmap=False, att
             newimg.append((255, color[1], color[2]))
         newimg_img = Image.new(img.mode, img.size)
         newimg_img.putdata(newimg)
+        np.array(newimg_img) # magic fix for drawing bug in Python 3.5.3 (?) no clue why this is necessary, but it is
         imgs.append(newimg_img)
         
         
