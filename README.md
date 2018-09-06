@@ -8,6 +8,7 @@ Template-free prediction of organic reaction outcomes using graph convolutional 
 - RDKit (trained/tested using 2017.09.1, visualization/deployment compatible with 2017.09.3)
 - Django (visualization compatible with 2.0.6)
 
+_note: there may be some issues with relative imports when using Python 2 now; this should be easy to resolve by removing the periods preceding package names_
 
 # Instructions 
 
