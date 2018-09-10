@@ -136,6 +136,41 @@ class DirectCandRanker():
 
         return outcomes
 
+    def predict_smiles(self, *args, **kwargs):
+        '''Wrapper to canonicalize and get SMILES probs'''
+        outcomes = self.predict(*args, **kwargs)
+        this_reactants_smiles = args[0]
+
+        from collections import defaultdict
+        outcomes_to_ret = defaultdict(float)
+        reactants_smiles_split = this_reactants_smiles.split('.')
+        for sco, outcome in outcomes:
+            smiles_list = set(outcome.split('.'))
+            
+            # Canonicalize
+            smiles_canonical = set()
+            for smi in smiles_list:
+                mol = Chem.MolFromSmiles(smi)
+                if not mol:
+                    continue
+                smiles_canonical.add(Chem.MolToSmiles(mol))
+
+            # Remove unreacted frags
+            smiles_canonical = smiles_canonical - set(reactants_smiles_split)
+            if not smiles_canonical:
+                continue # no reaction?
+
+            smiles = max(smiles_canonical, key=len) # NOTE: this is not great...byproducts may be longer
+            outcomes_to_ret[smiles] += sco
+
+        # Renormalize and re-rank
+        outcomes = sorted(outcomes_to_ret.items(), key=lambda x: x[1])
+        total_prob = sum([outcome[1] for outcome in outcomes])
+        for i, outcome in enumerate(outcomes):
+            outcome = (outcome[0], outcome[1] / total_prob)
+            outcomes[i] = outcome
+
+        return outcomes
 
 if __name__ == '__main__':
 
@@ -158,8 +193,9 @@ if __name__ == '__main__':
 
     directcandranker = DirectCandRanker()
     directcandranker.restore()
-    outcomes = directcandranker.predict(react, bond_preds, bond_scores)
-    for outcome in sorted(outcomes, key=lambda x: x[0]):
+    #outcomes = directcandranker.predict(react, bond_preds, bond_scores)
+    outcomes = directcandranker.predict_smiles(react, bond_preds, bond_scores)
+    for outcome in outcomes:
         print(outcome)
 
 
