@@ -1,7 +1,7 @@
 import tensorflow as tf
-from .nn import linearND, linear
-from .models import *
-from .ioutils_direct import *
+from nn import linearND, linear
+from models import *
+from ioutils_direct import *
 import math, sys, random
 from collections import Counter
 from optparse import OptionParser
