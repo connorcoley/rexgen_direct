@@ -2,6 +2,11 @@ import rdkit
 import rdkit.Chem as Chem
 import numpy as np
 
+'''
+This module is a duplicate of mol_graph.py in this same directory. It adds additional atom features,
+including some calculated electronic properties, which turn out to not actually help model performance
+'''
+
 # Extra atom features
 import rdkit.Chem.rdMolDescriptors as rdMolDescriptors
 import rdkit.Chem.EState as EState

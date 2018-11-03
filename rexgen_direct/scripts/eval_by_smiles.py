@@ -5,6 +5,14 @@ from rdkit import RDLogger
 lg = RDLogger.logger()
 lg.setLevel(4)
 
+'''
+This script evaluates the quality of predictions from the rank_diff_wln model by applying the predicted
+graph edits to the reactants, cleaning up the generated product, and comparing it to what was recorded
+as the true (major) product of that reaction
+'''
+
+# Define some post-sanitization reaction cleaning scripts
+# These are to align our graph edit representation of a reaction with the data for improved coverage
 from rdkit.Chem import AllChem
 clean_rxns_presani = [
     AllChem.ReactionFromSmarts('[O:1]=[c:2][n;H0:3]>>[O:1]=[c:2][n;H1:3]'), # hydroxypyridine written with carbonyl, must invent H on nitrogen
@@ -20,33 +28,12 @@ clean_rxns_postsani = [
 for clean_rxn in clean_rxns_presani + clean_rxns_postsani:
     if clean_rxn.Validate() != (0, 0):
         raise ValueError('Invalid cleaning reaction - check your SMARTS!')
-
-
 BOND_TYPE = [0, Chem.rdchem.BondType.SINGLE, Chem.rdchem.BondType.DOUBLE, Chem.rdchem.BondType.TRIPLE, Chem.rdchem.BondType.AROMATIC]
-
-def copy_edit_mol(mol):
-    new_mol = Chem.RWMol(Chem.MolFromSmiles(''))
-    for atom in mol.GetAtoms():
-        new_atom = Chem.Atom(atom.GetSymbol())
-        new_atom.SetFormalCharge(atom.GetFormalCharge())
-        new_atom.SetAtomMapNum(atom.GetAtomMapNum())
-
-        if atom.GetIsAromatic() and atom.GetSymbol() == 'N':
-            new_atom.SetNumExplicitHs(atom.GetTotalNumHs())
-
-        new_mol.AddAtom(new_atom)
-    for bond in mol.GetBonds():
-        a1 = bond.GetBeginAtom().GetIdx()
-        a2 = bond.GetEndAtom().GetIdx()
-        bt = bond.GetBondType()
-        new_mol.AddBond(a1, a2, bt)
-    return new_mol
-
 
 def edit_mol(rmol, edits):
     new_mol = Chem.RWMol(rmol)
 
-    # Keep track of aromatic nitrogens, might cause hydrogen issues
+    # Keep track of aromatic nitrogens, might cause explicit hydrogen issues
     aromatic_nitrogen_idx = set()
     aromatic_carbonyl_adj_to_aromatic_nH = {}
     aromatic_carbondeg3_adj_to_aromatic_nH0 = {}
@@ -66,6 +53,7 @@ def edit_mol(rmol, edits):
     for atom in rmol.GetAtoms():
         amap[atom.GetIntProp('molAtomMapNumber')] = atom.GetIdx()
 
+    # Apply the edits as predicted
     for x,y,t in edits:
         bond = new_mol.GetBondBetweenAtoms(amap[x],amap[y])
         a1 = new_mol.GetAtomWithIdx(amap[x])
@@ -119,6 +107,7 @@ def edit_mol(rmol, edits):
     pred_mol = new_mol.GetMol()
 
     # Clear formal charges to make molecules valid
+    # Note: because S and P (among others) can change valence, be more flexible
     for atom in pred_mol.GetAtoms():
         atom.ClearProp('molAtomMapNumber')
         if atom.GetSymbol() == 'N' and atom.GetFormalCharge() == 1: # exclude negatively-charged azide
@@ -201,10 +190,10 @@ def edit_mol(rmol, edits):
 if __name__ == "__main__":
 
     parser = OptionParser()
-    parser.add_option("-t", "--pred", dest="pred_path")
-    parser.add_option("-g", "--gold", dest="gold_path")
-    parser.add_option("-s", "--singleonly", dest="singleonly", default=False)
-    parser.add_option("--bonds_as_doubles", dest="bonds_as_doubles", default=False)
+    parser.add_option("-t", "--pred", dest="pred_path") # file containing predicted edits
+    parser.add_option("-g", "--gold", dest="gold_path") # file containing true edits
+    parser.add_option("-s", "--singleonly", dest="singleonly", default=False) # only compare single products
+    parser.add_option("--bonds_as_doubles", dest="bonds_as_doubles", default=False) # bond types are doubles, not indices
     opts,args = parser.parse_args()
 
     fpred = open(opts.pred_path)
@@ -218,6 +207,9 @@ if __name__ == "__main__":
                   Chem.rdchem.BondType.AROMATIC]
     bond_types_as_double = {0.0: 0, 1.0: 1, 2.0: 2, 3.0: 3, 1.5: 4}
 
+    # Define a standardization procedure so we can evaluate based on...
+    # a) RDKit-sanitized equivalence, and
+    # b) MOLVS-sanitized equivalence
     from molvs import Standardizer
     standardizer = Standardizer()
     standardizer.prefer_organic = True
@@ -252,8 +244,6 @@ if __name__ == "__main__":
             rmol = Chem.MolFromSmiles(r)
             pmol = Chem.MolFromSmiles(p)
 
-
-
             thisrow.append(r)
             thisrow.append(p)
 
@@ -275,6 +265,8 @@ if __name__ == "__main__":
             thisrow.append('.'.join(psmiles))
             thisrow.append('.'.join(psmiles_sani))
 
+
+            ########### Use *true* edits to try to recover product
 
             if opts.bonds_as_doubles:
                 cbonds = []
@@ -324,10 +316,11 @@ if __name__ == "__main__":
                     gfound += 1
                     gfound_sani += 1
 
-
             else:
                 gfound += 1
                 gfound_sani += 1
+
+            ########### Now use candidate edits to try to recover product
 
             rk,rk_sani = 11,11
             pred_smiles_list = []
@@ -374,8 +367,6 @@ if __name__ == "__main__":
                     rk_sani = min(rk_sani, ctr + 1)
                 if psmiles <= pred_smiles:
                     rk = min(rk, ctr + 1)
-                # if (rk < 10) and (rk_sani < 10):
-                #     break
 
                 # If we failed to come up with a new candidate, don't increment the counter!
                 if len(set(pred_smiles_list)) > prev_len_pred_smiles:

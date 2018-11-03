@@ -32,7 +32,7 @@ def edit_mol(rmol, edits, tatoms):
     for atom in rmol.GetAtoms():
         amap[atom.GetAtomMapNum() - 1] = atom.GetIdx()
 
-    for x,y,t,v in edits:
+    for x,y,t in edits:
         bond = new_mol.GetBondBetweenAtoms(amap[x],amap[y])
         # a1 = new_mol.GetAtomWithIdx(amap[x])
         # a2 = new_mol.GetAtomWithIdx(amap[y])

@@ -3,7 +3,7 @@ import numpy as np
 from collections import defaultdict
 
 '''
-This script looks at how many bond changes actually occur in forward reactions (in general)
+This script looks at how many bond changes actually occur in forward reactions (in this dataset)
 '''
 
 

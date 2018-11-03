@@ -95,6 +95,10 @@ def get_mask(arr_list):
     return a
 
 def smiles2graph_list(smiles_list, idxfunc=lambda x:x.GetIdx()):
+    '''
+    This function prepares all of the model inputs needed to process one batch and
+    pads them as needed (because not all examples will have the same number of atoms)
+    '''
     res = list(map(lambda x:smiles2graph(x,idxfunc), smiles_list))
     fatom_list, fbond_list, gatom_list, gbond_list, nb_list = zip(*res)
     return pack2D(fatom_list), pack2D(fbond_list), pack2D_withidx(gatom_list), pack2D_withidx(gbond_list), pack1D(nb_list), get_mask(fatom_list)

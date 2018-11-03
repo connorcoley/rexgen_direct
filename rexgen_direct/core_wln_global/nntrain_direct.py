@@ -1,18 +1,20 @@
+from __future__ import print_function
 import tensorflow as tf
 from .nn import linearND, linear
 from .mol_graph import atom_fdim as adim, bond_fdim as bdim, max_nb, smiles2graph_list as _s2g
 from .models import *
-from .ioutils_direct import * # NOTE: THIS IS CHANGED IN DIRECT VERSION
+from .ioutils_direct import *
 import math, sys, random
 from collections import Counter
 from optparse import OptionParser
 from functools import partial
 import threading
 from multiprocessing import Queue
-from __future__ import print_function
 
 '''
-Changes from NIPS paper:
+Script for training the core finder model
+
+Key changes from NIPS paper version:
 - Addition of "rich" options for atom featurization with more informative descriptors
 - Predicted reactivities are not 1D, but 5D and explicitly identify what the bond order of the product should be
 '''
@@ -53,6 +55,7 @@ _src_holder = [_input_atom, _input_bond, _atom_graph, _bond_graph, _num_nbs, _no
 _label = tf.placeholder(tf.int32, [batch_size, None])
 _binary = tf.placeholder(tf.float32, [batch_size, None, None, binary_fdim])
 
+# Queueing system allows CPU to prepare a buffer of <100 batches
 q = tf.FIFOQueue(100, [tf.float32, tf.float32, tf.int32, tf.int32, tf.int32, tf.float32, tf.int32, tf.float32])
 enqueue = q.enqueue(_src_holder + [_label, _binary])
 input_atom, input_bond, atom_graph, bond_graph, num_nbs, node_mask, label, binary = q.dequeue()
@@ -71,37 +74,47 @@ flat_label = tf.reshape(label, [-1])
 bond_mask = tf.to_float(tf.not_equal(flat_label, INVALID_BOND))
 flat_label = tf.maximum(0, flat_label)
 
+# Perform the WLN embedding 
 graph_inputs = (input_atom, input_bond, atom_graph, bond_graph, num_nbs, node_mask)
 with tf.variable_scope("encoder"):
     atom_hiddens, _ = rcnn_wl_last(graph_inputs, batch_size=batch_size, hidden_size=hidden_size, depth=depth)
 
+# Calculate local atom pair features as sum of local atom features
 atom_hiddens1 = tf.reshape(atom_hiddens, [batch_size, 1, -1, hidden_size])
 atom_hiddens2 = tf.reshape(atom_hiddens, [batch_size, -1, 1, hidden_size])
 atom_pair = atom_hiddens1 + atom_hiddens2
 
+# Calculate attention scores for each pair o atoms
 att_hidden = tf.nn.relu(linearND(atom_pair, hidden_size, scope="att_atom_feature", init_bias=None) + linearND(binary, hidden_size, scope="att_bin_feature"))
 att_score = linearND(att_hidden, 1, scope="att_scores")
 att_score = tf.nn.sigmoid(att_score)
+
+# Calculate context features using those attention scores
 att_context = att_score * atom_hiddens1
 att_context = tf.reduce_sum(att_context, 2)
 
+# Calculate global atom pair features as sum of atom context features
 att_context1 = tf.reshape(att_context, [batch_size, 1, -1, hidden_size])
 att_context2 = tf.reshape(att_context, [batch_size, -1, 1, hidden_size])
 att_pair = att_context1 + att_context2
 
+# Calculate likelihood of each pair of atoms to form a particular bond order
 pair_hidden = linearND(atom_pair, hidden_size, scope="atom_feature", init_bias=None) + linearND(binary, hidden_size, scope="bin_feature", init_bias=None) + linearND(att_pair, hidden_size, scope="ctx_feature")
 pair_hidden = tf.nn.relu(pair_hidden)
 pair_hidden = tf.reshape(pair_hidden, [batch_size, -1, hidden_size])
-
 score = linearND(pair_hidden, 5, scope="scores")
 score = tf.reshape(score, [batch_size, -1])
+
+# Mask existing/invalid bonds before taking topk predictions
 bmask = tf.to_float(tf.equal(label, INVALID_BOND)) * 10000
 _, topk = tf.nn.top_k(score - bmask, k=NK)
 flat_score = tf.reshape(score, [-1])
 
+# Train with categorical crossentropy
 loss = tf.nn.sigmoid_cross_entropy_with_logits(flat_score, tf.to_float(flat_label))
 loss = tf.reduce_sum(loss * bond_mask)
 
+# Use Adam with clipped gradients
 _lr = tf.placeholder(tf.float32, [])
 optimizer = tf.train.AdamOptimizer(learning_rate=_lr)
 param_norm = tf.global_norm(tf.trainable_variables())
@@ -117,6 +130,7 @@ size_func = lambda v: reduce(lambda x, y: x*y, v.get_shape().as_list())
 n = sum(size_func(v) for v in tf.trainable_variables())
 print("Model size: %dK" % (n/1000,))
 
+# Multiprocessing queue to run in parallel to Tensorflow queue, contains aux. information
 queue = Queue()
 
 def count(s):
@@ -127,6 +141,8 @@ def count(s):
     return c
 
 def read_data(path, coord):
+    '''Process data from a text file; bin by number of heavy atoms
+    since that will determine the input sizes in each batch'''
     bucket_size = [10,20,30,40,50,60,80,100,120,150]
     buckets = [[] for i in range(len(bucket_size))]
     with open(path, 'r') as f:
@@ -157,6 +173,7 @@ def read_data(path, coord):
             it = (it + 1) % data_len
         head[bid] = it
 
+        # Prepare batch for TF
         src_tuple = smiles2graph_batch(src_batch)
         cur_bin, cur_label, sp_label = get_all_batch(zip(src_batch, edit_batch))
         feed_map = {x:y for x,y in zip(_src_holder, src_tuple)}
@@ -176,8 +193,10 @@ lr = 0.001
 try:
     while not coord.should_stop():
         it += 1
+        # Run one minibatch
         _, cur_topk, pnorm, gnorm = session.run([backprop, topk, param_norm, grad_norm], feed_dict={_lr:lr})
         sp_label = queue.get()
+        # Get performance
         for i in range(batch_size):
             pre = 0
             for j in range(NK):

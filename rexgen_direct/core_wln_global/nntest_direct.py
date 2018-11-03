@@ -1,3 +1,4 @@
+from __future__ import print_function
 import tensorflow as tf
 from .nn import linearND, linear
 from .models import *
@@ -9,7 +10,12 @@ from functools import partial
 import threading
 from multiprocessing import Queue
 import os
-from __future__ import print_function
+
+'''
+Script for testing the core finder model and outputting predictions.
+
+Model architecture comments can be found in the training script
+'''
 
 NK3 = 80
 NK2 = 40
@@ -28,6 +34,7 @@ parser.add_option("-c", "--checkpoint", dest="checkpoint", default="final")
 parser.add_option("-v", "--verbose", dest="verbose", default=False)
 parser.add_option("--hard", dest="hard", default=False) # whether to allow reagents/solvents to contribute atoms
 parser.add_option("--detailed", dest="detailed", default=False) # whether to include scores in output
+# note: explicitly including scores (--detailed true) is very important for model performance!
 opts,args = parser.parse_args()
 
 batch_size = int(opts.batch_size)
@@ -39,7 +46,6 @@ if opts.rich_feat:
     from .mol_graph_rich import atom_fdim as adim, bond_fdim as bdim, max_nb, smiles2graph_list as _s2g
 else:
     from .mol_graph import atom_fdim as adim, bond_fdim as bdim, max_nb, smiles2graph_list as _s2g
-
 
 smiles2graph_batch = partial(_s2g, idxfunc=lambda x:x.GetIntProp('molAtomMapNumber') - 1)
 
@@ -139,6 +145,8 @@ def read_data(path, coord):
             pmol = Chem.MolFromSmiles(p)
             patoms = set([atom.GetAtomMapNum() for atom in pmol.GetAtoms()])
             mapnum = max(patoms) + 1
+
+            # ratoms, rbonds keep track of what parts of the reactant molecules are involved in the reaction
             ratoms = []; rbonds = []
             new_mapnums = False
             react_new = []
@@ -151,10 +159,10 @@ def read_data(path, coord):
                         tuple(sorted([b.GetBeginAtom().GetAtomMapNum(), b.GetEndAtom().GetAtomMapNum()]) + [b.GetBondTypeAsDouble()]) \
                         for b in xmol.GetBonds()
                     ])
-
             all_ratoms.append(ratoms)
             all_rbonds.append(rbonds)
 
+        # Prepare batch for TF
         src_tuple = smiles2graph_batch(src_batch)
         cur_bin, cur_label, sp_label = get_all_batch(zip(src_batch, edit_batch))
         feed_map = {x:y for x,y in zip(_src_holder, src_tuple)}
@@ -164,7 +172,6 @@ def read_data(path, coord):
         else:
             queue.put((sp_label, all_ratoms, all_rbonds, edit_batch))
         session.run(enqueue, feed_dict=feed_map)
-
 
     if detailed:
         queue.put((None, None, None, None, None))
@@ -201,6 +208,7 @@ try:
             rbonds = all_rbonds[i]
             pre = 0
 
+            # Keep track of different accuracies
             for j in range(NK):
                 if cur_topk[i, j] in sp_label[i]:
                     pre += 1
@@ -235,6 +243,8 @@ try:
                     y = ((k - bindex) / nbos) % cur_dim + 1
                     x = (k - bindex - (y-1) * nbos) / cur_dim / nbos + 1
                     bo = bindex_to_o[bindex]
+                    # Only allow atoms from reacting molecules to be part of the prediction,
+                    # for consistency with Schwaller et al. seq2seq evaluation
                     if x < y and x in ratoms and y in ratoms and (x, y, bo) not in rbonds:
                         print("{}-{}-{:.1f}".format(x, y, bo), end=' ')
                         if detailed: # include actual score of prediction

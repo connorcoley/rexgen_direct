@@ -8,6 +8,11 @@ binary_fdim = 4 + bond_fdim
 INVALID_BOND = -1
 
 def get_bin_feature(r, max_natoms):
+    '''
+    This function is used to generate descriptions of atom-atom relationships, including
+    the bond type between the atoms (if any) and whether they belong to the same molecule.
+    It is used in the global attention mechanism.
+    '''
     comp = {}
     for i, s in enumerate(r.split('.')):
         mol = Chem.MolFromSmiles(s)

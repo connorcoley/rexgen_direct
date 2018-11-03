@@ -10,6 +10,10 @@ import threading
 from multiprocessing import Queue
 import os
 
+'''
+This module defines the DirectCoreFinder class, which is for deploying the core finding model
+'''
+
 NK3 = 80
 batch_size = 2 # just fake it, make two 
 hidden_size = 300

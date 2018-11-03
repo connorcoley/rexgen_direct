@@ -10,6 +10,13 @@ import rdkit
 from rdkit import Chem
 import os
 
+
+'''
+This function uses the smiles2graph function from mol_graph_direct to keep track of how many
+valid candidates are generated when restricting enumeration to use a certain number of candidate bonds
+and core size.
+'''
+
 parser = OptionParser()
 parser.add_option("-t", "--test", dest="test_path")
 parser.add_option("-p", "--cand", dest="cand_path", default=None)
@@ -19,9 +26,6 @@ opts,args = parser.parse_args()
 
 core_size = int(opts.core_size)
 MAX_NCAND = int(opts.cand_size)
-
-
-### Read data and count
 
 data = []
 data_f = open(opts.test_path, 'r')

@@ -2,7 +2,7 @@ import rdkit
 import rdkit.Chem as Chem
 import numpy as np
 import random
-from edit_mol_direct_useScores import get_product_smiles
+from edit_mol_direct import get_product_smiles
 from collections import defaultdict
 
 elem_list = ['C', 'N', 'O', 'S', 'F', 'Si', 'P', 'Cl', 'Br', 'Mg', 'Na', 'Ca', 'Fe', 'As', 'Al', 'I', 'B', 'V', 'K', 'Tl', 'Yb', 'Sb', 'Sn', 'Ag', 'Pd', 'Co', 'Se', 'Ti', 'Zn', 'H', 'Li', 'Ge', 'Cu', 'Au', 'Ni', 'Cd', 'In', 'Mn', 'Zr', 'Cr', 'Pt', 'Hg', 'Pb', 'W', 'Ru', 'Nb', 'Re', 'Te', 'Rh', 'Tc', 'Ba', 'Bi', 'Hf', 'Mo', 'U', 'Sm', 'Os', 'Ir', 'Ce','Gd','Ga','Cs', 'unknown']
@@ -27,7 +27,7 @@ def atom_features(atom):
 def bond_features(bond):
     bt = bond.GetBondType()
     return np.array([bt == Chem.rdchem.BondType.SINGLE, bt == Chem.rdchem.BondType.DOUBLE, bt == Chem.rdchem.BondType.TRIPLE, bt == Chem.rdchem.BondType.AROMATIC, bond.IsInRing()], dtype=np.float32)
-
+            
 def packnb(arr_list):
     N = max([x.shape[0] for x in arr_list])
     M = max([x.shape[1] for x in arr_list])
@@ -42,8 +42,6 @@ def packnb(arr_list):
 def smiles2graph(rsmiles, psmiles, core_bonds, gold_bonds, cutoff=500,
                  idxfunc=lambda x:x.GetIntProp('molAtomMapNumber') - 1, core_size=20, kmax=5, return_found=False,
                  testing=False):
-    '''This is the function that takes reactants, a true product (when defined), and the candidate bonds
-    to generate all of the candidate products according to some bounds on the enumeration'''
     mol = Chem.MolFromSmiles(rsmiles)
     if not mol:
         raise ValueError("Could not parse smiles string:", rsmiles)
@@ -145,35 +143,40 @@ def smiles2graph(rsmiles, psmiles, core_bonds, gold_bonds, cutoff=500,
 
     # Get all possible core configurations - NEW IN DIRECT VERSION
     from itertools import combinations
-    core_configs = [] # will be list of lists of (x, y, t, v) tuples, where t is the bond order and v is CoreFinder score
+    core_configs = [] # will be list of lists of (x, y, t) tuples, where t is the bond order
 
     # print('rbond_vals:')
     # print(rbond_vals)
 
     # Filter out core bonds that exactly match reactants
     prev_len = len(core_bonds)
-    core_bonds = [(x,y,t,v) for (x,y,t,v) in core_bonds if ((x,y) not in rbond_vals) or (rbond_vals[(x,y)] != t)]
+    core_bonds = [(x,y,t) for (x,y,t) in core_bonds if ((x,y) not in rbond_vals) or (rbond_vals[(x,y)] != t)]
     # print('{}/{} core bonds kept after filtering existing bonds'.format(prev_len, len(core_bonds)))
 
     # Pare down to top-core_size only
     core_bonds = core_bonds[:core_size]
 
-    # Helper function to check if a combination is connected - this helps the number of valid combinations
+    # Helper function to check if a combination is connected
     core_bonds_adj = np.eye(len(core_bonds), dtype=bool)
     for i in range(len(core_bonds)):
-        a1, b1, t1, v1 = core_bonds[i]
+        a1, b1, t1 = core_bonds[i]
         for j in range(i, len(core_bonds)):
-            a2, b2, t2, v2 = core_bonds[j]
+            a2, b2, t2 = core_bonds[j]
             if a1 == a2 or a1 == b2 or b1 == a2 or b1 == b2:
                 core_bonds_adj[i,j] = core_bonds_adj[j,i] = True
     # print(core_bonds)
     # print('Calculated core bonds adj matrix: {}'.format(core_bonds_adj * 1.0))
 
     def check_if_connected(combo_i):
-        '''Checks if a set of candidate edits (by indeces) are all connected'''
         if len(combo_i) == 1:
             return True # only one change, always connected
+        # print(core_bonds_adj)
+        # temp_adj = core_bonds_adj[bond_change_combo_i, :][:, bond_change_combo_i]
+        # print(bond_change_combo_i)
+        # print(temp_adj)
+        # print(temp_adj.shape)
         temp_adj_pow = np.linalg.matrix_power(core_bonds_adj[combo_i, :][:, combo_i], len(combo_i)-1)
+        # print(temp_adj5)
         return np.all(temp_adj_pow)
 
 
@@ -183,7 +186,7 @@ def smiles2graph(rsmiles, psmiles, core_bonds, gold_bonds, cutoff=500,
         force_odd_parity = np.zeros((n_atoms,), dtype=bool)
         seen = defaultdict(lambda: False)
         free_vals_temp = free_vals.copy()
-        for x,y,t,v in bond_change_combo:
+        for x,y,t in bond_change_combo:
             x,y = tuple(sorted([x,y]))
             if seen[(x,y)]:
                 # print('already seen this bond in the list of cand changes')
@@ -257,9 +260,16 @@ def smiles2graph(rsmiles, psmiles, core_bonds, gold_bonds, cutoff=500,
             # Check if connected
             if not check_if_connected(bond_change_combo_i):
                 # print('This combination is not connected!')
+                # print(bond_change_combo_i)
                 continue
 
             bond_change_combo = [core_bonds[i] for i in bond_change_combo_i]
+            # print('Found a combination of {} bond changes'.format(k))
+            # print(bond_change_combo)
+            # print('Is it valid? {}'.format(check_if_valid(bond_change_combo)))
+            # if set(bond_change_combo) == gold_bonds:
+                # print('### CANDIDATE IS THE TRUE ONE')
+                # print('Is valid? {}'.format(check_if_valid(bond_change_combo)))
 
             if check_if_valid(bond_change_combo):
                 core_configs.append(bond_change_combo)
@@ -270,15 +280,15 @@ def smiles2graph(rsmiles, psmiles, core_bonds, gold_bonds, cutoff=500,
         random.shuffle(core_configs)
         idx = -1
         for i,cand_bonds in enumerate(core_configs):
-            if set([(x,y,t) for (x,y,t,v) in cand_bonds]) == gold_bonds:
+            if set(cand_bonds) == gold_bonds:
                 idx = i
                 break
 
-        # If we are training and did not find the true outcome, make sure it is the first entry
+        #Reaction Core Miss
         if idx == -1:
             # print('Did not find true outcome')
             found_true = False
-            core_configs = [[(x,y,t,0.0) for (x,y,t) in gold_bonds]] + core_configs
+            core_configs = [list(gold_bonds)] + core_configs
         else:
             # print('Found true outcome')
             found_true = True
@@ -321,14 +331,13 @@ def smiles2graph(rsmiles, psmiles, core_bonds, gold_bonds, cutoff=500,
 
     # Calculate information that is the same for all candidates; do small updates based on specific changes later
     pending_reactant_neighbors = [] # reactant neighbors that *might* be over-ridden
-    core_bonds_noScore = [(x,y,t) for (x,y,t,z) in core_bonds]
     for bond in mol.GetBonds():
         idx = bond.GetIdx()
         a1 = idxfunc(bond.GetBeginAtom())
         a2 = idxfunc(bond.GetEndAtom())
         a1,a2 = min(a1,a2),max(a1,a2)
 
-        if (a1,a2,0.0) not in core_bonds_noScore: # are a1 and a2 guaranteed to be neighbors?
+        if (a1,a2,0.0) not in core_bonds: # are a1 and a2 guaranteed to be neighbors?
             raw_atom_nb[a1,raw_num_nbs[a1]] = a2
             raw_atom_nb[a2,raw_num_nbs[a2]] = a1
             raw_bond_nb[a1,raw_num_nbs[a1]] = idx
@@ -356,7 +365,7 @@ def smiles2graph(rsmiles, psmiles, core_bonds, gold_bonds, cutoff=500,
     new_fbonds[:n_bonds,:] = fbonds
     fbonds = new_fbonds
     batch_fbonds, batch_anb, batch_bnb, batch_nbs = [fbonds], [atom_nb], [bond_nb], [num_nbs] # first entry is reactants
-    batch_corebias = []
+
     for core_bonds in core_configs:
         atom_nb2 = np.copy(raw_atom_nb)
         bond_nb2 = np.copy(raw_bond_nb)
@@ -365,12 +374,12 @@ def smiles2graph(rsmiles, psmiles, core_bonds, gold_bonds, cutoff=500,
         n_bonds2 = n_bonds + 1
 
         # Add back reactant bonds?
-        core_bonds_nobo = [(x,y) for (x,y,t,v) in core_bonds]
+        core_bonds_nobo = [(x,y) for (x,y,t) in core_bonds]
         for (x, y, t) in pending_reactant_neighbors:
             if (x, y) not in core_bonds_nobo:
-                core_bonds.append((x, y, t, 0.0))
+                core_bonds.append((x, y, t))
 
-        for x,y,t,v in core_bonds: # add new bond features to the "default" reactant ones
+        for x,y,t in core_bonds: # add new bond features to the "default" reactant ones
             if t == 0: continue
 
             atom_nb2[x,num_nbs2[x]] = y
@@ -389,22 +398,19 @@ def smiles2graph(rsmiles, psmiles, core_bonds, gold_bonds, cutoff=500,
         batch_anb.append(atom_nb2)
         batch_bnb.append(bond_nb2)
         batch_nbs.append(num_nbs2)
-        batch_corebias.append(sum([v for (x,y,t,v) in core_bonds]))
-
-    # TODO: change atom features for each candidate? Maybe update degree at least
 
     if return_found:
         return (np.array([fatoms] * n_batch), np.array(batch_fbonds), packnb(batch_anb), packnb(batch_bnb),
-                np.array(batch_nbs), np.array(batch_corebias), labels), core_configs, found_true
+                np.array(batch_nbs), labels), core_configs, found_true
     if not testing:
-        return (np.array([fatoms] * n_batch), np.array(batch_fbonds), packnb(batch_anb), packnb(batch_bnb), np.array(batch_nbs), np.array(batch_corebias), labels), core_configs
-    return (np.array([fatoms] * n_batch), np.array(batch_fbonds), packnb(batch_anb), packnb(batch_bnb), np.array(batch_nbs), np.array(batch_corebias)), core_configs
+        return (np.array([fatoms] * n_batch), np.array(batch_fbonds), packnb(batch_anb), packnb(batch_bnb), np.array(batch_nbs), labels), core_configs
+    return (np.array([fatoms] * n_batch), np.array(batch_fbonds), packnb(batch_anb), packnb(batch_bnb), np.array(batch_nbs)), core_configs
 
 if __name__ == "__main__":
 
     try:
         fid1 = open('../data/valid.txt.proc', 'r')
-        fid2 = open('../core_wln_global/model-300-3-direct/valid.cbond', 'r')
+        fid2 = open('../core-wln-global/model-300-3-direct/valid.cbond', 'r')
 
         ctr = 0
         tot = 0
@@ -425,7 +431,7 @@ if __name__ == "__main__":
             cands = fid2.readline().strip('\r\n ').split(' ')
 
             if cands:
-                core_bonds = [(int(x.split('-')[0])-1, int(x.split('-')[1])-1, float(x.split('-')[2]), 0.0) for x in cands if x]
+                core_bonds = [(int(x.split('-')[0])-1, int(x.split('-')[1])-1, float(x.split('-')[2])) for x in cands if x]
             else:
                 core_bonds = []
             # print('{} core bonds before filtering'.format(len(core_bonds)))
@@ -460,9 +466,6 @@ if __name__ == "__main__":
 
     finally:
 
-        # pr.disable()
-        # pr.print_stats()
-
         if tot:
             print('Total processed: {}'.format(tot))
             print('Coverage of true product: {}'.format(float(tot_found)/tot))
@@ -470,3 +473,4 @@ if __name__ == "__main__":
 
         fid1.close()
         fid2.close()
+

@@ -11,8 +11,11 @@ from rdkit import Chem
 import os
 import numpy as np 
 
-TOPK = 100
+'''
+This module defines the DirectCandRanker class, which is for deploying the candidate ranking model
+'''
 
+TOPK = 100
 hidden_size = 500
 depth = 3
 core_size = 16
@@ -41,8 +44,6 @@ class DirectCandRanker():
 
         self.graph = tf.Graph()
         with self.graph.as_default():
-
-            
             input_atom = tf.placeholder(tf.float32, [None, None, adim])
             input_bond = tf.placeholder(tf.float32, [None, None, bdim])
             atom_graph = tf.placeholder(tf.int32, [None, None, max_nb, 2])
@@ -50,7 +51,6 @@ class DirectCandRanker():
             num_nbs = tf.placeholder(tf.int32, [None, None])
             core_bias = tf.placeholder(tf.float32, [None])
             self.src_holder = [input_atom, input_bond, atom_graph, bond_graph, num_nbs, core_bias]
-
 
             graph_inputs = (input_atom, input_bond, atom_graph, bond_graph, num_nbs) 
             with tf.variable_scope("mol_encoder"):

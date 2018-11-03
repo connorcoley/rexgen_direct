@@ -1,3 +1,4 @@
+from __future__ import print_function
 import tensorflow as tf
 from nn import linearND, linear
 from mol_graph_direct_useScores import atom_fdim as adim, bond_fdim as bdim, max_nb, smiles2graph
@@ -7,6 +8,10 @@ from optparse import OptionParser
 import threading
 from multiprocessing import Queue, Pool
 import time
+
+'''
+Script for training the cand ranker model
+'''
 
 parser = OptionParser()
 parser.add_option("-t", "--train", dest="train_path")
@@ -51,20 +56,24 @@ label.set_shape([None])
 label = tf.stop_gradient(label)
 graph_inputs = (input_atom, input_bond, atom_graph, bond_graph, num_nbs) 
 
+# Get local atom-level features from WLN embedding
 with tf.variable_scope("mol_encoder"):
     fp_all_atoms = rcnn_wl_only(graph_inputs, hidden_size=hidden_size, depth=depth)
 
+# First entry is always reactants, rest are candidate products
 reactant = fp_all_atoms[0:1,:]
 candidates = fp_all_atoms[1:,:]
 candidates = candidates - reactant
 candidates = tf.concat([reactant, candidates], 0)
 
+# Calculate difference values between product and reactants
 with tf.variable_scope("diff_encoder"):
     reaction_fp = wl_diff_net(graph_inputs, candidates, hidden_size=hidden_size, depth=1)
 
 reaction_fp = reaction_fp[1:]
 reaction_fp = tf.nn.relu(linear(reaction_fp, hidden_size, "rex_hidden"))
 
+# Calculate scores for each candidate, train with softmax
 score = tf.squeeze(linear(reaction_fp, 1, "score"), [1]) + core_bias # add in bias from CoreFinder
 loss = tf.nn.softmax_cross_entropy_with_logits(labels=label, logits=score)
 pred = tf.argmax(score, 0)
@@ -80,6 +89,8 @@ grads, var = zip(*grads_and_vars)
 grad_norm = tf.global_norm(grads)
 new_grads, _ = tf.clip_by_global_norm(grads, max_norm)
 
+# Create gradiant accumulation operations to smooth training
+# i.e., only update after several minibatches
 accum_grads = [tf.Variable(tf.zeros(v.get_shape().as_list()), trainable=False) for v in tvs]
 zero_ops = [v.assign(tf.zeros(v.get_shape().as_list())) for v in accum_grads]
 accum_ops = [accum_grads[i].assign_add(grad) for i, grad in enumerate(new_grads)]
@@ -101,9 +112,12 @@ def count(s):
     return c
 
 # Define helper function for preparing one training example
+# note: this is because enumerating candidates can be slow
 n_buffered = 0 # prevent imap from building up too many results...
 n_buffered_lock = threading.Lock()
 def do_one_smiles2graph(datum):
+    '''This function takes the reactants and candidate bond changes and generates
+    all of the candidate products in a format the model expects'''
     try:
         reaction, cand_bonds, gbonds = datum
         r, _, p = reaction.split('>')
@@ -172,6 +186,7 @@ def read_data(coord):
                 n_buffered -= 1
             if src_tuple is None:
                 continue
+            # Feed batch to MP queue and TF queue
             feed_map = {x: y for x, y in zip(_src_holder, src_tuple)}
             session.run(enqueue, feed_dict=feed_map)
 

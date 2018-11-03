@@ -1,3 +1,4 @@
+from __future__ import print_function
 import tensorflow as tf
 from nn import linearND, linear
 from mol_graph_direct_useScores import atom_fdim as adim, bond_fdim as bdim, max_nb, smiles2graph, bond_types
@@ -9,7 +10,7 @@ from multiprocessing import Queue, Pool
 import time
 import rdkit.Chem as Chem
 import os
-from __future__ import print_function
+
 
 parser = OptionParser()
 parser.add_option("-t", "--test", dest="test_path")
