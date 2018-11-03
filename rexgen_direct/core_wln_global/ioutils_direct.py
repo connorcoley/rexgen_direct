@@ -4,7 +4,7 @@ import numpy as np
 
 BOND_TYPE = ["NOBOND", Chem.rdchem.BondType.SINGLE, Chem.rdchem.BondType.DOUBLE, Chem.rdchem.BondType.TRIPLE, Chem.rdchem.BondType.AROMATIC] 
 N_BOND_CLASS = len(BOND_TYPE)
-binary_fdim = 5 + bond_fdim
+binary_fdim = 4 + bond_fdim
 INVALID_BOND = -1
 
 def get_bin_feature(r, max_natoms):
