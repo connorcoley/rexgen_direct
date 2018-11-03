@@ -43,7 +43,7 @@ sys.path += [os.path.dirname(rexgen_direct_root)] # need to be able to import di
 
 from rexgen_direct.core_wln_global.directcorefinder import DirectCoreFinder
 directcorefinder = DirectCoreFinder()
-directcorefinder.restore()
+directcorefinder.load_model()
 
 def arrow():
     subImgSize = (115, 115)
